@@ -1,48 +1,60 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "md5.h"
-
-#if __has_include("fileutil.h")
 #include "fileutil.h"
-#endif
 
-#define PASS_LEN 50     // Maximum length any password will be.
-#define HASH_LEN 33     // Length of hash plus one for null.
+#define PASS_LEN 50
+#define HASH_LEN 33
 
 
-int main(int argc, char *argv[])
-{
-    if (argc < 3) 
-    {
-        printf("Usage: %s hash_file dictionary_file\n", argv[0]);
+int compareHashes(const void *a, const void *b) {
+    return strcmp(*(char **)a, *(char **)b);
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 3) {
+        printf("Usage: %s <hash_file> <dictionary_file>\n", argv[0]);
         exit(1);
     }
 
-    // TODO: Read the hashes file into an array.
-    //   Use either a 2D array or an array of arrays.
-    //   Use the loadFile function from fileutil.c
-    //   Uncomment the appropriate statement.
+    
     int size;
-    //char (*hashes)[HASH_LEN] = loadFile(argv[1], &size);
-    //char **hashes = loadFile(argv[1], &size);
-    
-    // CHALLENGE1: Sort the hashes using qsort.
-    
-    // TODO
-    // Open the password file for reading.
+    char **hashes = loadFileAA(argv[1], &size);
 
-    // TODO
-    // For each password, hash it, then use the array search
-    // function from fileutil.h to find the hash.
-    // If you find it, display the password and the hash.
-    // Keep track of how many hashes were found.
-    // CHALLENGE1: Use binary search instead of linear search.
+    
+    qsort(hashes, size, sizeof(char *), compareHashes);
 
-    // TODO
-    // When done with the file:
-    //   Close the file
-    //   Display the number of hashes found.
-    //   Free up memory.
+    
+    FILE *dict_file = fopen(argv[2], "r");
+    if (!dict_file) {
+        perror("Failed to open dictionary file");
+        exit(1);
+    }
+
+    int cracked_count = 0;
+    char password[PASS_LEN];
+
+    
+    while (fgets(password, sizeof(password), dict_file)) {
+        password[strcspn(password, "\n")] = '\0'; 
+        
+        
+        char *hashed_password = md5(password, strlen(password));
+
+        
+        if (bsearch(&hashed_password, hashes, size, sizeof(char *), compareHashes)) {
+            printf("Cracked: %s -> %s\n", password, hashed_password);
+            cracked_count++;
+        }
+
+        free(hashed_password); 
+    }
+
+    fclose(dict_file);
+    freeAA(hashes, size); 
+
+    printf("Total hashes cracked: %d\n", cracked_count);
+
+    return 0;
 }
